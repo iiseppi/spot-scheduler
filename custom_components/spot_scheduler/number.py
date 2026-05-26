@@ -8,11 +8,15 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers import entity_registry as er
 
 from .const import (
+    CONF_AUTO_SELECT_END_HOUR,
     CONF_AUTO_SELECT_HOURS,
+    CONF_AUTO_SELECT_START_HOUR,
     CONF_EXPENSIVE_HOURS_COUNT,
     CONF_PRICE_THRESHOLD_HIGH,
     CONF_PRICE_THRESHOLD_LOW,
+    DEFAULT_AUTO_SELECT_END_HOUR,
     DEFAULT_AUTO_SELECT_HOURS,
+    DEFAULT_AUTO_SELECT_START_HOUR,
     DEFAULT_EXPENSIVE_HOURS,
     DEFAULT_PRICE_THRESHOLD_HIGH,
     DEFAULT_PRICE_THRESHOLD_LOW,
@@ -33,6 +37,8 @@ async def async_setup_entry(
         SpotPriceThresholdLowNumber(entry),
         SpotPriceThresholdHighNumber(entry),
         SpotAutoSelectHoursNumber(entry),
+        SpotAutoSelectStartHourNumber(entry),
+        SpotAutoSelectEndHourNumber(entry),
         SpotExpensiveHoursNumber(entry),
     ]
     async_add_entities(entities)
@@ -41,7 +47,8 @@ async def async_setup_entry(
     ent_reg = er.async_get(hass)
     current_unique_ids = {e.unique_id for e in entities}
     stale = [
-        e for e in ent_reg.entities.values()
+        e
+        for e in ent_reg.entities.values()
         if e.config_entry_id == entry.entry_id
         and e.platform == DOMAIN
         and e.domain == "number"
@@ -148,6 +155,68 @@ class SpotAutoSelectHoursNumber(_SpotConfigNumber):
 
     async def async_set_native_value(self, value: float) -> None:
         await self._save_option(CONF_AUTO_SELECT_HOURS, int(value))
+
+
+class SpotAutoSelectStartHourNumber(_SpotConfigNumber):
+    """Start hour for cheapest-hour auto-select window."""
+
+    _attr_translation_key = "auto_select_start_hour"
+    _attr_native_min_value = 0
+    _attr_native_max_value = 23
+    _attr_native_step = 1
+    _attr_native_unit_of_measurement = "h"
+    _attr_icon = "mdi:clock-start"
+
+    @property
+    def unique_id(self) -> str:
+        return f"{self._entry.entry_id}_auto_select_start_hour"
+
+    @property
+    def native_value(self) -> float:
+        return float(
+            int(
+                self._merged().get(
+                    CONF_AUTO_SELECT_START_HOUR,
+                    DEFAULT_AUTO_SELECT_START_HOUR,
+                )
+            )
+        )
+
+    async def async_set_native_value(self, value: float) -> None:
+        await self._save_option(CONF_AUTO_SELECT_START_HOUR, int(value))
+
+
+class SpotAutoSelectEndHourNumber(_SpotConfigNumber):
+    """End hour for cheapest-hour auto-select window.
+
+    End hour is exclusive:
+    start=0, end=7 means 00:00–06:59.
+    """
+
+    _attr_translation_key = "auto_select_end_hour"
+    _attr_native_min_value = 1
+    _attr_native_max_value = 24
+    _attr_native_step = 1
+    _attr_native_unit_of_measurement = "h"
+    _attr_icon = "mdi:clock-end"
+
+    @property
+    def unique_id(self) -> str:
+        return f"{self._entry.entry_id}_auto_select_end_hour"
+
+    @property
+    def native_value(self) -> float:
+        return float(
+            int(
+                self._merged().get(
+                    CONF_AUTO_SELECT_END_HOUR,
+                    DEFAULT_AUTO_SELECT_END_HOUR,
+                )
+            )
+        )
+
+    async def async_set_native_value(self, value: float) -> None:
+        await self._save_option(CONF_AUTO_SELECT_END_HOUR, int(value))
 
 
 class SpotExpensiveHoursNumber(_SpotConfigNumber):
