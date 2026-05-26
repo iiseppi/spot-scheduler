@@ -117,11 +117,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: SpotSchedulerConfigEntry
     nordpool_entry_id = _get_nordpool_entry_id(entry)
     if not hass.config_entries.async_get_entry(nordpool_entry_id):
         ir.async_create_issue(
-            hass,
-            DOMAIN,
-            ISSUE_NORDPOOL_MISSING,
-            is_fixable=False,
-            severity=ir.IssueSeverity.ERROR,
+            hass, DOMAIN, ISSUE_NORDPOOL_MISSING,
+            is_fixable=False, severity=ir.IssueSeverity.ERROR,
             translation_key="nordpool_integration_missing",
             translation_placeholders={"entry_id": nordpool_entry_id or "unknown"},
         )
@@ -157,13 +154,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SpotSchedulerConfigEntry
     hass.data[DOMAIN].add(entry.entry_id)
 
     today = dt_util.now().date()
-
-    await _fetch_prices_for_date(
-        hass,
-        entry,
-        today - timedelta(days=1),
-        auto_select=False,
-    )
+    await _fetch_prices_for_date(hass, entry, today - timedelta(days=1), auto_select=False)
 
     ok = await _fetch_prices_for_date(hass, entry, today)
     if not ok:
@@ -217,31 +208,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: SpotSchedulerConfigEntry
 
 async def async_unload_entry(hass: HomeAssistant, entry: SpotSchedulerConfigEntry) -> bool:
     """Unload SpotScheduler cleanly."""
-    remaining = [
-        eid for eid in hass.data.get(DOMAIN, set())
-        if eid != entry.entry_id
-    ]
+    remaining = [eid for eid in hass.data.get(DOMAIN, set()) if eid != entry.entry_id]
 
     if not remaining:
-        for svc in (
-            "set_device_schedule",
-            "refresh_prices",
-            "apply_schedules_now",
-            "run_auto_select",
-        ):
+        for svc in ("set_device_schedule", "refresh_prices", "apply_schedules_now", "run_auto_select"):
             if hass.services.has_service(DOMAIN, svc):
                 hass.services.async_remove(DOMAIN, svc)
 
     ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if ok:
         hass.data[DOMAIN].discard(entry.entry_id)
+
     return ok
 
 
-async def _async_update_listener(
-    hass: HomeAssistant,
-    entry: SpotSchedulerConfigEntry,
-) -> None:
+async def _async_update_listener(hass: HomeAssistant, entry: SpotSchedulerConfigEntry) -> None:
     """Reload only when the device list changes."""
     if entry.entry_id not in hass.data.get(DOMAIN, set()):
         return
@@ -258,16 +239,11 @@ async def _async_update_listener(
         )
         await hass.config_entries.async_reload(entry.entry_id)
     else:
-        hass.bus.async_fire(
-            f"{DOMAIN}_apply_now",
-            {"entry_id": entry.entry_id},
-        )
+        hass.bus.async_fire(f"{DOMAIN}_apply_now", {"entry_id": entry.entry_id})
 
 
 def _setup_nordpool_tracking(
-    hass: HomeAssistant,
-    entry: SpotSchedulerConfigEntry,
-    nordpool_entry_id: str,
+    hass: HomeAssistant, entry: SpotSchedulerConfigEntry, nordpool_entry_id: str
 ) -> None:
     """Watch all Nord Pool entities for this config entry."""
     ent_reg = er.async_get(hass)
@@ -289,9 +265,7 @@ def _setup_nordpool_tracking(
         hass.async_create_task(_poll_tomorrow_if_needed(hass, entry))
 
     cancel = async_track_state_change_event(
-        hass,
-        nordpool_entities,
-        _on_nordpool_update,
+        hass, nordpool_entities, _on_nordpool_update
     )
     entry.async_on_unload(cancel)
 
@@ -302,10 +276,7 @@ def _setup_nordpool_tracking(
     )
 
 
-async def _poll_tomorrow_if_needed(
-    hass: HomeAssistant,
-    entry: SpotSchedulerConfigEntry,
-) -> None:
+async def _poll_tomorrow_if_needed(hass: HomeAssistant, entry: SpotSchedulerConfigEntry) -> None:
     """Fetch tomorrow's prices if not already fetched today."""
     if entry.entry_id not in hass.data.get(DOMAIN, set()):
         return
@@ -345,10 +316,7 @@ async def _poll_tomorrow_if_needed(
             _LOGGER.info("Tomorrow's prices fetched successfully (%s)", tomorrow)
 
 
-async def _on_midnight(
-    hass: HomeAssistant,
-    entry: SpotSchedulerConfigEntry,
-) -> None:
+async def _on_midnight(hass: HomeAssistant, entry: SpotSchedulerConfigEntry) -> None:
     """New day: prune stale data, reset tomorrow guard, fetch today."""
     await _daily_reset(hass, entry)
 
@@ -400,11 +368,7 @@ async def _fetch_prices_for_date(
         return False
 
     if not result:
-        _LOGGER.warning(
-            "Empty response from nordpool for %s (entry=%s)",
-            date_str,
-            nordpool_entry_id,
-        )
+        _LOGGER.warning("Empty response from nordpool for %s (entry=%s)", date_str, nordpool_entry_id)
         return False
 
     _LOGGER.debug(
@@ -432,18 +396,11 @@ async def _fetch_prices_for_date(
                 all_by_date.setdefault(local_date, {}).update(hours)
 
     except Exception as exc:
-        _LOGGER.error(
-            "Failed to parse Nord Pool price data for %s: %s",
-            date_str,
-            exc,
-        )
+        _LOGGER.error("Failed to parse Nord Pool price data for %s: %s", date_str, exc)
         return False
 
     if not all_by_date:
-        _LOGGER.debug(
-            "No usable price slots in Nord Pool response for %s",
-            date_str,
-        )
+        _LOGGER.debug("No usable price slots in Nord Pool response for %s", date_str)
         return False
 
     if entry.entry_id not in hass.data.get(DOMAIN, set()):
@@ -499,10 +456,7 @@ def _maybe_raise_unavailable_issue(hass: HomeAssistant) -> None:
     )
 
 
-async def _daily_reset(
-    hass: HomeAssistant,
-    entry: SpotSchedulerConfigEntry,
-) -> None:
+async def _daily_reset(hass: HomeAssistant, entry: SpotSchedulerConfigEntry) -> None:
     """Prune schedules and prices older than yesterday."""
     if entry.entry_id not in hass.data.get(DOMAIN, set()):
         return
@@ -517,10 +471,7 @@ async def _daily_reset(
     _LOGGER.debug("Midnight cleanup complete.")
 
 
-async def _save_schedules(
-    hass: HomeAssistant,
-    entry: SpotSchedulerConfigEntry,
-) -> None:
+async def _save_schedules(hass: HomeAssistant, entry: SpotSchedulerConfigEntry) -> None:
     """Persist schedules and prices to HA storage."""
     if entry.entry_id not in hass.data.get(DOMAIN, set()):
         return
@@ -534,9 +485,7 @@ async def _save_schedules(
 
 
 async def _auto_select_cheapest(
-    hass: HomeAssistant,
-    entry: SpotSchedulerConfigEntry,
-    date_str: str,
+    hass: HomeAssistant, entry: SpotSchedulerConfigEntry, date_str: str
 ) -> None:
     """Auto-configure hours after prices arrive."""
     if entry.entry_id not in hass.data.get(DOMAIN, set()):
@@ -572,9 +521,6 @@ async def _auto_select_cheapest(
         )
     )
 
-    # Clamp to valid range.
-    # End hour is exclusive:
-    # start=0, end=7 means 00:00–06:59.
     start_hour = max(0, min(23, start_hour))
     end_hour = max(1, min(24, end_hour))
 
@@ -605,8 +551,7 @@ async def _auto_select_cheapest(
         already_on = sum(
             1
             for hour_str, value in device_sched.items()
-            if value is True
-            and start_hour <= int(hour_str) < end_hour
+            if value is True and start_hour <= int(hour_str) < end_hour
         )
 
         remaining = max(0, n - already_on)
@@ -645,12 +590,7 @@ async def _auto_select_cheapest(
         )
 
     if merged.get(CONF_BLOCK_EXPENSIVE_HOURS, DEFAULT_BLOCK_EXPENSIVE):
-        exp_count = int(
-            merged.get(
-                CONF_EXPENSIVE_HOURS_COUNT,
-                DEFAULT_EXPENSIVE_HOURS,
-            )
-        )
+        exp_count = int(merged.get(CONF_EXPENSIVE_HOURS_COUNT, DEFAULT_EXPENSIVE_HOURS))
 
         if exp_count > 0:
             exp_hrs = expensive_hours(prices, exp_count)
@@ -663,21 +603,10 @@ async def _auto_select_cheapest(
 
             for device_id in devices:
                 for hour in blockable:
-                    existing = (
-                        schedules
-                        .get(date_str, {})
-                        .get(device_id, {})
-                        .get(str(hour))
-                    )
+                    existing = schedules.get(date_str, {}).get(device_id, {}).get(str(hour))
 
                     if existing not in (True, "skip"):
-                        set_schedule(
-                            schedules,
-                            date_str,
-                            device_id,
-                            hour,
-                            False,
-                        )
+                        set_schedule(schedules, date_str, device_id, hour, False)
                         changed = True
 
             _LOGGER.info(
@@ -689,25 +618,19 @@ async def _auto_select_cheapest(
 
     if changed:
         await _save_schedules(hass, entry)
-        hass.bus.async_fire(
-            f"{DOMAIN}_schedule_changed",
-            {
-                "device_id": None,
-                "date": date_str,
-                "hour": None,
-                "enabled": None,
-            },
-        )
+        hass.bus.async_fire(f"{DOMAIN}_schedule_changed", {
+            "device_id": None,
+            "date": date_str,
+            "hour": None,
+            "enabled": None,
+        })
 
 
 def _register_services(hass: HomeAssistant) -> None:
     """Register services once; safe to call again on additional instances."""
 
     async def set_device_schedule(call: ServiceCall) -> None:
-        target_date = (
-            call.data.get("date") or dt_util.now().date()
-        ).isoformat()
-
+        target_date = (call.data.get("date") or dt_util.now().date()).isoformat()
         hour: int = call.data["hour"]
         device_id: str = call.data["device_id"]
         enabled: bool | str | None = call.data.get("enabled")
@@ -728,13 +651,7 @@ def _register_services(hass: HomeAssistant) -> None:
                 continue
 
             matched = True
-            set_schedule(
-                data.schedules,
-                target_date,
-                device_id,
-                hour,
-                enabled,
-            )
+            set_schedule(data.schedules, target_date, device_id, hour, enabled)
             await _save_schedules(hass, cfg_entry)
 
         if not matched:
@@ -745,15 +662,12 @@ def _register_services(hass: HomeAssistant) -> None:
             )
             return
 
-        hass.bus.async_fire(
-            f"{DOMAIN}_schedule_changed",
-            {
-                "device_id": device_id,
-                "date": target_date,
-                "hour": hour,
-                "enabled": enabled,
-            },
-        )
+        hass.bus.async_fire(f"{DOMAIN}_schedule_changed", {
+            "device_id": device_id,
+            "date": target_date,
+            "hour": hour,
+            "enabled": enabled,
+        })
 
     async def refresh_prices(call: ServiceCall) -> None:
         target_date = call.data.get("date") or dt_util.now().date()
@@ -765,22 +679,14 @@ def _register_services(hass: HomeAssistant) -> None:
             if cfg_entry.entry_id not in hass.data.get(DOMAIN, set()):
                 continue
 
-            ok = await _fetch_prices_for_date(
-                hass,
-                cfg_entry,
-                target_date,
-            )
+            ok = await _fetch_prices_for_date(hass, cfg_entry, target_date)
 
             if not ok and target_date == dt_util.now().date():
                 _maybe_raise_unavailable_issue(hass)
 
     async def apply_schedules_now(call: ServiceCall) -> None:
         entry_id = call.data.get("entry_id")
-
-        hass.bus.async_fire(
-            f"{DOMAIN}_apply_now",
-            {"entry_id": entry_id},
-        )
+        hass.bus.async_fire(f"{DOMAIN}_apply_now", {"entry_id": entry_id})
 
         _LOGGER.info(
             "apply_schedules_now triggered manually (entry_id=%s)",
