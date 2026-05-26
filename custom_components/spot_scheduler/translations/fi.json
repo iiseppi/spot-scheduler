@@ -63,6 +63,12 @@
       "auto_select_hours": {
         "name": "Halvimmat tunnit"
       },
+      "auto_select_start_hour": {
+        "name": "Halvimpien tuntien aloitusaika"
+      },
+      "auto_select_end_hour": {
+        "name": "Halvimpien tuntien päättymisaika"
+      },
       "expensive_hours": {
         "name": "Kalliit tunnit"
       }
