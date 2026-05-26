@@ -63,6 +63,12 @@
       "auto_select_hours": {
         "name": "Cheapest hours"
       },
+      "auto_select_start_hour": {
+        "name": "Cheapest hours start time"
+      },
+      "auto_select_end_hour": {
+        "name": "Cheapest hours end time"
+      },
       "expensive_hours": {
         "name": "Expensive hours"
       }
